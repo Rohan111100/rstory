@@ -29,27 +29,22 @@ export default function Footer() {
           {/* Stories Directory */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
-              Story Genres
+              Quick Links
             </h4>
             <ul className="mt-3 space-y-2 text-sm">
               <li>
-                <Link href="/stories?genre=Sci-Fi" className="transition hover:text-sky-400">
-                  Science Fiction &amp; Dystopia
+                <Link href="/" className="transition hover:text-sky-400">
+                  Home
                 </Link>
               </li>
               <li>
-                <Link href="/stories?genre=Fantasy" className="transition hover:text-indigo-400">
-                  Epic &amp; Dark Fantasy
+                <Link href="/stories" className="transition hover:text-sky-400">
+                  Story Directory
                 </Link>
               </li>
               <li>
-                <Link href="/stories?genre=Horror" className="transition hover:text-rose-400">
-                  Supernatural &amp; Horror
-                </Link>
-              </li>
-              <li>
-                <Link href="/stories?genre=Mystery" className="transition hover:text-amber-400">
-                  Mystery &amp; Thriller
+                <Link href="/series/cybo-rex" className="transition hover:text-sky-400">
+                  Cybo-Rex Sagas
                 </Link>
               </li>
             </ul>
@@ -58,27 +53,17 @@ export default function Footer() {
           {/* Flagship Series */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
-              Flagship Series
+              Original Sagas
             </h4>
             <ul className="mt-3 space-y-2 text-sm">
               <li>
                 <Link href="/series/cybo-rex" className="text-sky-400 font-medium transition hover:underline">
-                  ⚡ Cybo-Rex (Debut Saga)
+                  ⚡ Cybo-Rex (Episode 1 Live)
                 </Link>
               </li>
               <li>
-                <Link href="/series/the-shadow-realm" className="transition hover:text-slate-200">
-                  The Shadow Realm (Coming)
-                </Link>
-              </li>
-              <li>
-                <Link href="/series/cyber-horizon-2099" className="transition hover:text-slate-200">
-                  Cyber Horizon 2099 (Coming)
-                </Link>
-              </li>
-              <li>
-                <Link href="/series/the-whispering-hollow" className="transition hover:text-slate-200">
-                  The Whispering Hollow (Coming)
+                <Link href="/series/cybo-rex/episode-1-the-strange-phenomena" className="transition hover:text-slate-200">
+                  Episode 1: The Strange Phenomena
                 </Link>
               </li>
             </ul>

@@ -14,7 +14,7 @@ export default function StoriesPage() {
     ? ALL_SERIES
     : ALL_SERIES.filter(s => s.genre.toLowerCase() === activeGenre.toLowerCase());
 
-  const genres = ['All', 'Sci-Fi', 'Fantasy', 'Horror', 'Mystery'];
+  const genres = ['All', 'Sci-Fi'];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -29,31 +29,11 @@ export default function StoriesPage() {
               <span>STORY DIRECTORY</span>
             </div>
             <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl font-sans">
-              Explore All Stories &amp; Series
+              Original Stories &amp; Sagas
             </h1>
             <p className="mt-2 text-sm text-slate-400 max-w-2xl">
-              From high-concept speculative sci-fi to blood-moon dark fantasy. Pick a saga and start reading from Episode 1.
+              High-concept speculative fiction and episodic web novels. Pick a saga and start reading from Episode 1.
             </p>
-
-            {/* Genre Filter Pills */}
-            <div className="mt-6 flex flex-wrap items-center gap-2">
-              {genres.map(g => {
-                const isActive = activeGenre.toLowerCase() === g.toLowerCase();
-                return (
-                  <button
-                    key={g}
-                    onClick={() => setActiveGenre(g)}
-                    className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30'
-                        : 'border border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-white'
-                    }`}
-                  >
-                    {g === 'All' ? '✨ All Genres' : g}
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Series Grid */}

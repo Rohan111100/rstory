@@ -34,29 +34,17 @@ export default function Header() {
             Home
           </Link>
           <Link
+            href="/series/cybo-rex"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800/60 hover:text-sky-400"
+          >
+            ⚡ Cybo-Rex
+          </Link>
+          <Link
             href="/stories"
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800/60 hover:text-white"
           >
             <Library className="h-4 w-4 text-sky-400" />
-            All Stories
-          </Link>
-          <Link
-            href="/stories?genre=Sci-Fi"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-sky-300"
-          >
-            🚀 Sci-Fi
-          </Link>
-          <Link
-            href="/stories?genre=Fantasy"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-indigo-300"
-          >
-            ⚔️ Fantasy
-          </Link>
-          <Link
-            href="/stories?genre=Horror"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-rose-300"
-          >
-            👁️ Horror
+            Library
           </Link>
         </nav>
 
