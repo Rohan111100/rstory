@@ -1,10 +1,16 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getSeriesBySlug } from '../../../data/series';
+import { ALL_SERIES, getSeriesBySlug } from '../../../data/series';
 import { getEpisodesBySeries } from '../../../data/episodes';
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import { BookOpen, Star, Clock, Calendar, Sparkles, ArrowRight, User } from 'lucide-react';
+
+export function generateStaticParams() {
+  return ALL_SERIES.map(series => ({
+    slug: series.slug,
+  }));
+}
 
 interface SeriesPageProps {
   params: Promise<{ slug: string }>;

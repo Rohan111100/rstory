@@ -1,17 +1,14 @@
+'use client';
+
+import { useState } from 'react';
 import { ALL_SERIES } from '../../data/series';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import SeriesCard from '../../components/SeriesCard';
-import Link from 'next/link';
-import { Library, Sparkles } from 'lucide-react';
+import { Library } from 'lucide-react';
 
-interface StoriesPageProps {
-  searchParams: Promise<{ genre?: string }>;
-}
-
-export default async function StoriesPage({ searchParams }: StoriesPageProps) {
-  const { genre } = await searchParams;
-  const activeGenre = genre || 'All';
+export default function StoriesPage() {
+  const [activeGenre, setActiveGenre] = useState<string>('All');
 
   const filteredSeries = activeGenre === 'All'
     ? ALL_SERIES
@@ -43,17 +40,17 @@ export default async function StoriesPage({ searchParams }: StoriesPageProps) {
               {genres.map(g => {
                 const isActive = activeGenre.toLowerCase() === g.toLowerCase();
                 return (
-                  <Link
+                  <button
                     key={g}
-                    href={g === 'All' ? '/stories' : `/stories?genre=${g}`}
-                    className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+                    onClick={() => setActiveGenre(g)}
+                    className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all cursor-pointer ${
                       isActive
                         ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30'
                         : 'border border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-white'
                     }`}
                   >
                     {g === 'All' ? '✨ All Genres' : g}
-                  </Link>
+                  </button>
                 );
               })}
             </div>
@@ -78,3 +75,4 @@ export default async function StoriesPage({ searchParams }: StoriesPageProps) {
     </div>
   );
 }
+

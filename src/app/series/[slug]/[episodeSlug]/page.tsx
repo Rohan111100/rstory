@@ -1,7 +1,14 @@
 import { notFound } from 'next/navigation';
 import { getSeriesBySlug } from '../../../../data/series';
-import { getEpisode, getEpisodesBySeries, getAdjacentEpisodes } from '../../../../data/episodes';
+import { ALL_EPISODES, getEpisode, getEpisodesBySeries, getAdjacentEpisodes } from '../../../../data/episodes';
 import ReaderEngine from '../../../../components/ReaderEngine';
+
+export function generateStaticParams() {
+  return ALL_EPISODES.map(ep => ({
+    slug: ep.seriesSlug,
+    episodeSlug: ep.slug,
+  }));
+}
 
 interface EpisodePageProps {
   params: Promise<{
