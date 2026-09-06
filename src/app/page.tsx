@@ -82,7 +82,7 @@ export default function HomePage() {
                 <div className="relative mx-auto max-w-md overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900/80 p-2 shadow-2xl shadow-black/80 group">
                   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl">
                     <img
-                      src="/images/cybo-rex/ep1-cover.jpg"
+                      src={flagship.coverImage}
                       alt="Cybo-Rex Anomaly"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />

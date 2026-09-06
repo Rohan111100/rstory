@@ -1,5 +1,7 @@
 import { StorySeries } from '../types/story';
 
+const prefix = process.env.NODE_ENV === 'production' ? '/rstory' : '';
+
 export const ALL_SERIES: StorySeries[] = [
   {
     id: 'series-cybo-rex',
@@ -7,8 +9,8 @@ export const ALL_SERIES: StorySeries[] = [
     title: 'Cybo-Rex',
     tagline: 'When humanity conquered the stars, only time remained beyond control.',
     synopsis: 'In the year 3000, humanity lives in the utopian paradise of Luminar—a Type III civilization powered by the Sun itself. But when a half-million square foot section of the ancient jungle known as The Eclipsed Wilds vanishes without trace or crater, intern John William Hardly is pulled into a clandestine government investigation alongside Dr. Victor Arclight. What lurks beyond the temporal rift will reshape civilization forever.',
-    coverImage: '/images/cybo-rex/ep1-cover.jpg',
-    bannerImage: '/images/cybo-rex/ep1-cover.jpg',
+    coverImage: `${prefix}/images/cybo-rex/ep1-cover.jpg`,
+    bannerImage: `${prefix}/images/cybo-rex/ep1-cover.jpg`,
     genre: 'Sci-Fi',
     tags: ['Sci-Fi', 'Time Travel', 'Dystopia', 'AI & Cyborgs', 'Mystery'],
     status: 'Ongoing',
