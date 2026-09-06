@@ -47,6 +47,11 @@ export default function Footer() {
                   Cybo-Rex Sagas
                 </Link>
               </li>
+              <li>
+                <Link href="/editor" className="inline-flex items-center gap-1 text-slate-400 transition hover:text-purple-400">
+                  <span>🖋️ Creator Studio</span>
+                </Link>
+              </li>
             </ul>
           </div>
 
