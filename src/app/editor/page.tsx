@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { 
@@ -14,13 +14,29 @@ import {
   Eye, 
   FileText, 
   FolderPlus,
-  Layers,
-  ArrowRight
+  Rocket,
+  RefreshCw,
+  Server,
+  ExternalLink,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
+
+interface AvailableImage {
+  name: string;
+  path: string;
+}
 
 export default function StoryEditorPage() {
   const [activeTab, setActiveTab] = useState<'episode' | 'series'>('episode');
   const [copied, setCopied] = useState<boolean>(false);
+
+  // Local Backend status
+  const [serverOnline, setServerOnline] = useState<boolean>(false);
+  const [availableImages, setAvailableImages] = useState<AvailableImage[]>([]);
+  const [isDeploying, setIsDeploying] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   // Episode Form State
   const [seriesSlug, setSeriesSlug] = useState('cybo-rex');
@@ -33,7 +49,7 @@ export default function StoryEditorPage() {
   const [authorNote, setAuthorNote] = useState('Thank you for reading this episode! Subscribe and follow for new releases every week.');
 
   // Image Helper state inside paragraph builder
-  const [imgSrc, setImgSrc] = useState('');
+  const [selectedImg, setSelectedImg] = useState('');
   const [imgCaption, setImgCaption] = useState('');
   const [imgTag, setImgTag] = useState('');
 
@@ -45,12 +61,35 @@ export default function StoryEditorPage() {
   const [newSeriesCover, setNewSeriesCover] = useState('');
   const [newSeriesGenre, setNewSeriesGenre] = useState('Sci-Fi');
 
+  // Check local backend status & fetch images on mount
+  useEffect(() => {
+    checkServerAndFetchImages();
+  }, []);
+
+  const checkServerAndFetchImages = async () => {
+    try {
+      const res = await fetch('http://localhost:4000/api/status');
+      if (res.ok) {
+        setServerOnline(true);
+        const imgRes = await fetch('http://localhost:4000/api/images');
+        if (imgRes.ok) {
+          const data = await imgRes.json();
+          setAvailableImages(data.images || []);
+        }
+      } else {
+        setServerOnline(false);
+      }
+    } catch (e) {
+      setServerOnline(false);
+    }
+  };
+
   // Insert image shortcut into paragraphs text
   const insertImageTag = () => {
-    if (!imgSrc) return;
-    const formattedTag = `\n\nimg:${imgSrc}|${imgCaption || 'Scene Illustration'}|${imgTag || 'SCENE'}\n\n`;
+    if (!selectedImg) return;
+    const formattedTag = `\n\nimg:${selectedImg}|${imgCaption || 'Scene Illustration'}|${imgTag || 'SCENE'}\n\n`;
     setParagraphsText(prev => prev + formattedTag);
-    setImgSrc('');
+    setSelectedImg('');
     setImgCaption('');
     setImgTag('');
   };
@@ -62,21 +101,21 @@ export default function StoryEditorPage() {
   };
 
   // Build the code export
-  const buildEpisodeCode = () => {
+  const buildEpisodeObject = () => {
     const slug = generateSlug(episodeTitle, episodeNumber);
     const paragraphs = paragraphsText
       .split('\n')
       .map(p => p.trim())
       .filter(p => p.length > 0);
 
-    const codeObj = {
+    return {
       id: `${seriesSlug}-ep-${episodeNumber}`,
       slug: slug,
       seriesSlug: seriesSlug,
       episodeNumber: Number(episodeNumber),
       title: episodeTitle || 'Untitled Episode',
       publishedAt: new Date().toISOString().split('T')[0],
-      coverArt: coverArt ? `\${prefix}${coverArt}` : undefined,
+      coverArt: coverArt || undefined,
       coverCaption: coverCaption || undefined,
       estimatedReadTime: Math.max(1, Math.ceil(paragraphs.join(' ').split(/\s+/).length / 200)),
       wordCount: paragraphs.join(' ').split(/\s+/).length,
@@ -84,8 +123,110 @@ export default function StoryEditorPage() {
       paragraphs: paragraphs,
       authorNote: authorNote || undefined
     };
+  };
 
-    return JSON.stringify(codeObj, null, 2);
+  // Save Episode to data file locally via server
+  const handleSaveEpisode = async () => {
+    if (!episodeTitle) {
+      setStatusMessage({ type: 'error', text: 'Please enter an Episode Title first!' });
+      return;
+    }
+
+    setIsSaving(true);
+    setStatusMessage({ type: 'info', text: 'Saving episode to data files...' });
+
+    try {
+      const episodeData = buildEpisodeObject();
+      const res = await fetch('http://localhost:4000/api/save-episode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(episodeData)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save');
+
+      setStatusMessage({ 
+        type: 'success', 
+        text: `Episode saved locally! Now click the "Deploy to Git" button to push it live to the web.` 
+      });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: `Save error: ${err.message}` });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save Series to data file locally
+  const handleSaveSeries = async () => {
+    if (!newSeriesTitle || !newSeriesSlug) {
+      setStatusMessage({ type: 'error', text: 'Please enter a Series Title and Slug!' });
+      return;
+    }
+
+    setIsSaving(true);
+    setStatusMessage({ type: 'info', text: 'Saving new series...' });
+
+    try {
+      const seriesObj = {
+        id: `series-${newSeriesSlug}`,
+        slug: newSeriesSlug,
+        title: newSeriesTitle,
+        tagline: newSeriesTagline,
+        synopsis: newSeriesSynopsis,
+        coverImage: newSeriesCover || `/images/cybo-rex/ep1-cover.jpg`,
+        genre: newSeriesGenre,
+        tags: [newSeriesGenre, 'Fiction']
+      };
+
+      const res = await fetch('http://localhost:4000/api/save-series', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seriesObj)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save series');
+
+      setStatusMessage({ 
+        type: 'success', 
+        text: `Series saved! Click "Deploy to Git" to publish it live.` 
+      });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: `Save error: ${err.message}` });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Deploy to Git & GitHub Pages
+  const handleDeployToGit = async () => {
+    setIsDeploying(true);
+    setStatusMessage({ type: 'info', text: 'Pushing changes to GitHub repository... This will trigger GitHub Pages build.' });
+
+    try {
+      const commitMsg = activeTab === 'episode' 
+        ? `Publish Episode ${episodeNumber}: ${episodeTitle || 'New Chapter'} via Studio`
+        : `Publish Series ${newSeriesTitle || 'New Saga'} via Studio`;
+
+      const res = await fetch('http://localhost:4000/api/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: commitMsg })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.details || data.error || 'Deploy failed');
+
+      setStatusMessage({ 
+        type: 'success', 
+        text: `🎉 Successfully pushed to GitHub! GitHub Pages is building now. Your changes will be live in 1-2 minutes!` 
+      });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: `Deploy failed: ${err.message}` });
+    } finally {
+      setIsDeploying(false);
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -99,18 +240,77 @@ export default function StoryEditorPage() {
       <Header />
 
       <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+        {/* Top Server & Deploy Bar */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-3.5 w-3.5 rounded-full ${serverOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white uppercase tracking-wider">Local Studio Engine:</span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${serverOnline ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400'}`}>
+                  {serverOnline ? 'ONLINE (Port 4000)' : 'OFFLINE HELPER'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                {serverOnline 
+                  ? 'Connected to local Git repo. You can Save and Deploy with 1 click without touching code.' 
+                  : 'Run "node studio-server.js" to enable 1-Click Save & Git Deploy.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={checkServerAndFetchImages}
+              className="p-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:text-white transition"
+              title="Refresh connection & images"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+
+            {/* ONE-CLICK DEPLOY BUTTON */}
+            <button
+              onClick={handleDeployToGit}
+              disabled={isDeploying || !serverOnline}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold shadow-lg transition-all ${
+                serverOnline 
+                  ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 text-white hover:scale-105 hover:shadow-emerald-500/30 cursor-pointer' 
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              }`}
+            >
+              <Rocket className={`h-4 w-4 ${isDeploying ? 'animate-spin' : ''}`} />
+              <span>{isDeploying ? 'Deploying to Git...' : '🚀 DEPLOY TO GIT'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Status Message Banner */}
+        {statusMessage && (
+          <div className={`mb-6 flex items-center gap-3 p-4 rounded-xl border text-xs font-medium ${
+            statusMessage.type === 'success' 
+              ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300' 
+              : statusMessage.type === 'error'
+              ? 'bg-rose-950/60 border-rose-500/40 text-rose-300'
+              : 'bg-sky-950/60 border-sky-500/40 text-sky-300'
+          }`}>
+            {statusMessage.type === 'success' ? <CheckCircle className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+            <span className="flex-1">{statusMessage.text}</span>
+            <button onClick={() => setStatusMessage(null)} className="text-slate-400 hover:text-white ml-2">✕</button>
+          </div>
+        )}
+
         {/* Editor Title Banner */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-400 mb-2">
               <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
-              <span>CREATOR STUDIO &amp; CMS</span>
+              <span>OFFLINE CREATOR STUDIO</span>
             </div>
             <h1 className="text-3xl font-extrabold text-white sm:text-4xl font-sans">
-              Author Story Studio
+              Author Control Center
             </h1>
             <p className="mt-1 text-sm text-slate-400">
-              Create new episodes, attach scene illustrations, write author notes, and preview before publishing.
+              Create episodes, attach scenes from your images folder, and publish straight to GitHub Pages.
             </p>
           </div>
 
@@ -178,7 +378,7 @@ export default function StoryEditorPage() {
                     <label className="block text-xs font-semibold text-slate-300 mb-1">Episode Title</label>
                     <input
                       type="text"
-                      placeholder="e.g. The Quantum Breach"
+                      placeholder="e.g. The Classified Descent"
                       value={episodeTitle}
                       onChange={e => setEpisodeTitle(e.target.value)}
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white focus:border-sky-500 focus:outline-none"
@@ -207,17 +407,29 @@ export default function StoryEditorPage() {
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Image Relative Path</label>
-                    <input
-                      type="text"
-                      placeholder="/images/cybo-rex/ep2-cover.jpg"
-                      value={coverArt}
-                      onChange={e => setCoverArt(e.target.value)}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
-                    />
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Choose from Scanned Images:</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={coverArt}
+                        onChange={e => setCoverArt(e.target.value)}
+                        className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white focus:border-sky-500 focus:outline-none"
+                      >
+                        <option value="">-- Select an Image from /public/images/ --</option>
+                        {availableImages.map(img => (
+                          <option key={img.path} value={img.path}>{img.name} ({img.path})</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Or custom: /images/cybo-rex/..."
+                        value={coverArt}
+                        onChange={e => setCoverArt(e.target.value)}
+                        className="w-1/2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Image Caption</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Cover Caption</label>
                     <input
                       type="text"
                       placeholder="e.g. Dr. Victor Arclight inspects the temporal fissure."
@@ -229,7 +441,7 @@ export default function StoryEditorPage() {
                 </div>
               </div>
 
-              {/* Story Body & Image Inserter Tool */}
+              {/* Story Body & Visual Image Inserter Tool */}
               <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -241,26 +453,47 @@ export default function StoryEditorPage() {
                   </span>
                 </div>
 
-                {/* Quick Scene Image Insert Helper */}
+                {/* Visual Image Inserter Box */}
                 <div className="rounded-xl border border-sky-500/30 bg-sky-950/20 p-4 space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold text-sky-300">
-                    <span>🖼️ Quick Attach Scene Illustration</span>
-                    <span className="text-[11px] font-normal text-slate-400">Inserts formatted tag between paragraphs</span>
+                    <span>🖼️ Attach Picture-Book Scene Illustration</span>
+                    <span className="text-[11px] font-normal text-slate-400">Inserts between text paragraphs</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Image Path: /images/cybo-rex/scene-1.jpg"
-                      value={imgSrc}
-                      onChange={e => setImgSrc(e.target.value)}
-                      className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white font-mono focus:outline-none"
-                    />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Select Image:</label>
+                      <select
+                        value={selectedImg}
+                        onChange={e => setSelectedImg(e.target.value)}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
+                      >
+                        <option value="">-- Choose Image from Folder --</option>
+                        {availableImages.map(img => (
+                          <option key={img.path} value={img.path}>{img.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Or Type Custom Path:</label>
+                      <input
+                        type="text"
+                        placeholder="/images/cybo-rex/..."
+                        value={selectedImg}
+                        onChange={e => setSelectedImg(e.target.value)}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white font-mono focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                     <input
                       type="text"
                       placeholder="Scene Caption..."
                       value={imgCaption}
                       onChange={e => setImgCaption(e.target.value)}
-                      className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
+                      className="sm:col-span-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
                     />
                     <div className="flex gap-2">
                       <input
@@ -268,7 +501,7 @@ export default function StoryEditorPage() {
                         placeholder="Tag (e.g. SCENE 01)"
                         value={imgTag}
                         onChange={e => setImgTag(e.target.value)}
-                        className="w-28 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-white focus:outline-none"
+                        className="w-24 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-white focus:outline-none"
                       />
                       <button
                         type="button"
@@ -284,7 +517,7 @@ export default function StoryEditorPage() {
                 {/* Main Paragraphs Textarea */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Story Paragraphs (Separate each paragraph with an Enter key. Use &quot;---&quot; for scene divider):
+                    Story Paragraphs (Press Enter between paragraphs. Use &quot;---&quot; for dramatic scene break):
                   </label>
                   <textarea
                     rows={14}
@@ -305,12 +538,42 @@ export default function StoryEditorPage() {
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white focus:border-sky-500 focus:outline-none"
                   />
                 </div>
+
+                {/* Save & Deploy Actions Card */}
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveEpisode}
+                    disabled={isSaving || !serverOnline}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold shadow-lg transition ${
+                      serverOnline 
+                        ? 'bg-sky-600 hover:bg-sky-500 text-white cursor-pointer' 
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    <span>{isSaving ? 'Saving Episode...' : '1. Save Episode to Site'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDeployToGit}
+                    disabled={isDeploying || !serverOnline}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold shadow-lg transition ${
+                      serverOnline 
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white cursor-pointer' 
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Rocket className={`h-4 w-4 ${isDeploying ? 'animate-spin' : ''}`} />
+                    <span>{isDeploying ? 'Deploying to Git...' : '2. Deploy to Git (Live)'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Right: Live Preview & Ready-To-Publish Code Box */}
+            {/* Right: Code Object & Direct Clipboard fallback */}
             <div className="lg:col-span-5 space-y-6">
-              {/* Ready to Publish Code Box */}
               <div className="sticky top-20 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                   <div className="flex items-center gap-2">
@@ -318,20 +581,22 @@ export default function StoryEditorPage() {
                     <h3 className="text-sm font-bold text-white">Generated Episode Object</h3>
                   </div>
                   <button
-                    onClick={() => copyToClipboard(buildEpisodeCode())}
+                    onClick={() => copyToClipboard(JSON.stringify(buildEpisodeObject(), null, 2))}
                     className="flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-bold text-white shadow transition hover:bg-sky-400"
                   >
                     {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    <span>{copied ? 'Copied to Clipboard!' : 'Copy Code'}</span>
+                    <span>{copied ? 'Copied!' : 'Copy Code'}</span>
                   </button>
                 </div>
 
                 <p className="mt-3 text-xs text-slate-400">
-                  Simply copy this object and paste it into <code className="text-sky-300 font-mono">src/data/episodes.ts</code> or share it with the assistant to publish instantly!
+                  {serverOnline 
+                    ? 'Using the buttons on the left will automatically save and push this object to GitHub for you!' 
+                    : 'You can copy this JSON object directly if working completely offline.'}
                 </p>
 
                 <pre className="mt-4 max-h-[460px] overflow-y-auto rounded-xl bg-slate-950 p-4 text-[11px] font-mono text-sky-200 leading-relaxed border border-slate-800">
-                  {buildEpisodeCode()}
+                  {JSON.stringify(buildEpisodeObject(), null, 2)}
                 </pre>
               </div>
             </div>
@@ -410,39 +675,47 @@ export default function StoryEditorPage() {
               />
             </div>
 
-            <div className="pt-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Cover Image Path (Optional)</label>
+              <select
+                value={newSeriesCover}
+                onChange={e => setNewSeriesCover(e.target.value)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white focus:border-sky-500 focus:outline-none"
+              >
+                <option value="">-- Choose from scanned images --</option>
+                {availableImages.map(img => (
+                  <option key={img.path} value={img.path}>{img.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="pt-2 flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  const seriesObj = {
-                    id: `series-${newSeriesSlug}`,
-                    slug: newSeriesSlug,
-                    title: newSeriesTitle,
-                    tagline: newSeriesTagline,
-                    synopsis: newSeriesSynopsis,
-                    coverImage: `\${prefix}/images/${newSeriesSlug}/cover.jpg`,
-                    bannerImage: `\${prefix}/images/${newSeriesSlug}/cover.jpg`,
-                    genre: newSeriesGenre,
-                    tags: [newSeriesGenre, 'Fiction'],
-                    status: 'Ongoing',
-                    author: {
-                      name: 'Rohan Parmar',
-                      role: 'Creator & Lead Writer',
-                      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-                      bio: 'Author of futuristic sagas, speculative fiction, and rich episodic web novels.'
-                    },
-                    featured: true,
-                    rating: 5.0,
-                    totalViews: '1.2K',
-                    releaseSchedule: 'New episode every week',
-                    episodesCount: 0
-                  };
-                  copyToClipboard(JSON.stringify(seriesObj, null, 2));
-                }}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 py-3 text-xs font-bold text-white shadow-lg transition hover:from-sky-400 hover:to-indigo-500"
+                onClick={handleSaveSeries}
+                disabled={isSaving || !serverOnline}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold shadow-lg transition ${
+                  serverOnline 
+                    ? 'bg-sky-600 hover:bg-sky-500 text-white cursor-pointer' 
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                }`}
               >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                <span>{copied ? 'Copied Series Object!' : 'Generate & Copy Series Template'}</span>
+                <CheckCircle className="h-4 w-4" />
+                <span>{isSaving ? 'Saving...' : '1. Save Series'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeployToGit}
+                disabled={isDeploying || !serverOnline}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold shadow-lg transition ${
+                  serverOnline 
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white cursor-pointer' 
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                <Rocket className="h-4 w-4" />
+                <span>2. Deploy to Git</span>
               </button>
             </div>
           </div>
