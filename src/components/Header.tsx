@@ -46,6 +46,12 @@ export default function Header() {
             <Library className="h-4 w-4 text-sky-400" />
             Library
           </Link>
+          <Link
+            href="/editor"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-purple-400 transition-colors hover:bg-purple-950/40 hover:text-purple-300"
+          >
+            🖋️ Studio
+          </Link>
         </nav>
 
         {/* Right Action Buttons */}
